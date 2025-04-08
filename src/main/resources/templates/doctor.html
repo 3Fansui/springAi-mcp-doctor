@@ -1,0 +1,1592 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" href="/images/favicon.ico" type="image/x-icon"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>家庭医生 AI 助手</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 添加 Marked.js 库来渲染 Markdown -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        /* Basic styles */
+        body { font-family: sans-serif; }
+        .content-section { display: none; /* Hide all sections by default */ }
+        .content-section.active { display: block; }
+        .nav-button.active { background-color: #d1fae5; color: #067d48; } /* Active nav style */
+        .family-member-item.active { background-color: #e0f2fe; border-left: 3px solid #0ea5e9; } /* Active member style */
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb { background: #888; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+        /* Health card hover effect */
+        .health-card { transition: all 0.3s ease; }
+        .health-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+        /* Markdown styles */
+        .markdown-content h1, .markdown-content h2, .markdown-content h3 { font-weight: bold; margin-top: 0.8rem; margin-bottom: 0.4rem; }
+        .markdown-content h1 { font-size: 1.5rem; } .markdown-content h2 { font-size: 1.3rem; } .markdown-content h3 { font-size: 1.1rem; }
+        .markdown-content ul, .markdown-content ol { margin-left: 1.5rem; margin-bottom: 0.5rem; list-style: revert; }
+        .markdown-content li { margin-bottom: 0.25rem; }
+        .markdown-content p { margin-bottom: 0.5rem; }
+        .markdown-content strong { font-weight: bold; } .markdown-content em { font-style: italic; }
+        .markdown-content code { font-family: monospace; background-color: rgba(0,0,0,0.05); padding: 0.1rem 0.2rem; border-radius: 0.2rem; }
+        .markdown-content pre { background-color: rgba(0,0,0,0.05); padding: 0.5rem; border-radius: 0.3rem; overflow-x: auto; margin-bottom: 0.5rem; }
+        .markdown-content a { color: #3b82f6; text-decoration: underline; }
+        .markdown-content blockquote { border-left: 4px solid #e5e7eb; padding-left: 1rem; font-style: italic; margin: 0.5rem 0; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex text-gray-800">
+    <!-- Left Sidebar -->
+    <div class="w-[260px] bg-white border-r border-gray-200 flex flex-col h-screen flex-shrink-0">
+        <!-- Logo -->
+        <div class="p-4 border-b border-gray-200 flex items-center space-x-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                <span class="text-xl font-semibold">家庭医生</span>
+        </div>
+
+        <!-- Navigation -->
+        <div class="flex-1 overflow-y-auto p-2">
+             <!-- Chat History -->
+             <div class="mb-6">
+                    <div class="text-sm text-gray-500 px-3 py-2 mb-2">会话历史</div>
+                    <div id="chat-history-list">
+                    <!-- Thymeleaf loop for chat history -->
+                        <div th:if="${chatIds != null and !chatIds.isEmpty()}" class="space-y-1">
+                            <a th:each="chatId : ${chatIds}" 
+                               th:href="@{'/doctor/chat?id=' + ${chatId}}" 
+                               th:class="${chatId == currentChatId ? 'bg-green-50 text-green-700' : 'hover:bg-gray-100'}"
+                               class="block flex items-center w-full py-2 rounded-lg overflow-hidden text-sm" style="white-space: nowrap; display: flex; align-items: center; flex-wrap: nowrap;">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-3 mr-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
+                                <span class="chat-title truncate inline-block max-w-[140px]" data-chat-id="${chatId}" th:data-chat-id="${chatId}" th:text="${#strings.length(chatId) > 7 ? #strings.substring(chatId, 0, 7) + '...' : chatId}">会话ID</span>
+                                <button type="button" class="edit-title-btn text-gray-500 hover:text-green-500 p-0.5 mx-0.5 flex-shrink-0" th:data-chat-id="${chatId}" title="编辑标题">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </svg>
+                                </button>
+                                <button type="button" class="delete-chat-btn text-gray-500 hover:text-red-500 p-0.5 mr-3 flex-shrink-0" th:data-chat-id="${chatId}" title="删除会话">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
+                            </a>
+                        </div>
+                    <div th:if="${chatIds == null or chatIds.isEmpty()}" class="text-center text-gray-500 text-sm py-2">暂无会话历史</div>
+                    </div>
+                </div>
+                
+            <!-- Main Functions -->
+            <div class="mb-6">
+                    <div class="text-sm text-gray-500 px-3 py-2 mb-2">主要功能</div>
+                <div class="space-y-1">
+                    <button data-section="health-consultation" class="nav-button w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors flex items-center space-x-3 active">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
+                        <span>健康咨询</span>
+                    </button>
+                    <button data-section="health-record" class="nav-button w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors flex items-center space-x-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
+                        <span>健康记录</span>
+                    </button>
+                    <button data-section="medication-reminder" class="nav-button w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors flex items-center space-x-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        <span>用药提醒</span>
+                    </button>
+                    <button data-section="health-data" class="nav-button w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors flex items-center space-x-3">
+                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                        <span>健康数据</span>
+                    </button>
+                    <button data-section="health-knowledge" class="nav-button w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors flex items-center space-x-3">
+                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+                        <span>健康知识</span>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Family Members -->
+            <div class="mt-6">
+                <div class="text-sm text-gray-500 px-3 py-2 mb-2">家庭成员</div>
+                <div id="family-member-list" class="space-y-1">
+                    <!-- Family members will be loaded here by JavaScript -->
+                     <div class="text-center text-gray-500 text-sm py-2">加载中...</div>
+                </div>
+                 <button id="add-member-btn" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors flex items-center space-x-3 mt-2 text-gray-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                    <span>添加成员</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Footer Links -->
+        <div class="border-t border-gray-200 p-4 mt-auto">
+             <!-- Settings Button (Placeholder) -->
+            <button class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors flex items-center space-x-3 mb-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                <span>设置</span>
+            </button>
+            <!-- Back to Home (maybe remove if this IS home) -->
+           <!-- <a href="/" class="block w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors flex items-center space-x-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7m-7-7v14" /></svg>
+                <span>返回主页</span>
+            </a> -->
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="flex-1 flex flex-col h-screen overflow-y-auto">
+        <!-- Top Header Bar -->
+        <div class="border-b border-gray-200 p-4 bg-white sticky top-0 z-10">
+             <div class="flex justify-between items-center max-w-6xl mx-auto">
+                <h1 id="main-title" class="text-xl font-semibold text-green-700">健康咨询</h1>
+                 <!-- Right side buttons (e.g., New Consultation) -->
+                <div class="flex items-center space-x-2">
+                    <button id="new-consult-btn" class="bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition-colors text-sm flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                        新建咨询
+                    </button>
+                     <button id="add-record-btn" class="hidden bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-colors text-sm">添加记录</button>
+                     <button id="add-medication-btn" class="hidden bg-purple-600 text-white px-3 py-1.5 rounded-lg hover:bg-purple-700 transition-colors text-sm">添加用药</button>
+                     <button id="add-data-btn" class="hidden bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 transition-colors text-sm">添加数据</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Content Sections Container -->
+        <div class="p-4 flex-1">
+            <div class="max-w-6xl mx-auto">
+
+                <!-- Section: Health Consultation (Chat Interface) -->
+                <div id="health-consultation" class="content-section active">
+                    <!-- Welcome Card (Initially Visible) -->
+                    <div id="welcome-card" class="bg-white rounded-xl shadow-sm p-6 border border-gray-200 mb-6">
+                    <div class="flex items-start">
+                            <div class="flex-shrink-0 mr-4"><div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></div></div>
+                        <div>
+                            <h2 class="text-xl font-semibold text-gray-800 mb-2">您好，欢迎使用家庭医生AI助手</h2>
+                                <p class="text-gray-600 mb-4">我是您的AI家庭医生助手，可以为您和家人提供健康咨询、健康管理和医疗建议。请记住，虽然我能提供专业的健康知识，但对于严重症状，请及时就医。</p>
+                            <div class="flex flex-wrap gap-2">
+                                    <button class="quick-question-btn bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-1.5 rounded-lg transition-colors text-sm">感冒发烧怎么办？</button>
+                                    <button class="quick-question-btn bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-1.5 rounded-lg transition-colors text-sm">血压偏高应该注意什么？</button>
+                                    <button class="quick-question-btn bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-1.5 rounded-lg transition-colors text-sm">健康饮食指南</button>
+                                    <button class="quick-question-btn bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-1.5 rounded-lg transition-colors text-sm">如何改善睡眠质量？</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                    <!-- Chat Container (Initially Hidden or shown based on URL) -->
+                <div id="chat-container" class="bg-white rounded-xl shadow-sm p-4 border border-gray-200 hidden">
+                    <div class="flex items-center justify-between mb-3 pb-3 border-b border-gray-200">
+                            <h2 class="text-lg font-semibold text-gray-800">与AI助手对话</h2>
+                             <button id="close-chat-btn" class="text-gray-400 hover:text-gray-600" title="关闭聊天">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    </div>
+                    <div id="messages-container" class="h-[400px] overflow-y-auto mb-4 p-2 space-y-4">
+                            <!-- Messages load here -->
+                            </div>
+                        <!-- Input Area -->
+                    <div class="flex items-end space-x-2">
+                        <div class="flex-1 bg-gray-50 rounded-lg border border-gray-300 focus-within:border-green-500 focus-within:ring-1 focus-within:ring-green-500 transition-all">
+                                <textarea id="message-input" rows="2" class="w-full px-4 py-2 bg-transparent outline-none resize-none" placeholder="请描述您的健康问题或症状...\"></textarea>
+                        </div>
+                            <button id="send-button" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2">
+                            <span>发送</span>
+                                <svg id="loading-spinner" class="hidden w-4 h-4 animate-spin" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                        </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section: Health Record -->
+                 <div id="health-record" class="content-section">
+                    <h2 class="text-lg font-semibold mb-4">健康记录</h2>
+                     <div id="health-record-list" class="space-y-4">
+                        <!-- Health records will load here -->
+                         <p class="text-gray-500">正在加载健康记录...</p>
+                            </div>
+                     <!-- Add/Edit Form Placeholder -->
+                            </div>
+
+                <!-- Section: Medication Reminder -->
+                 <div id="medication-reminder" class="content-section">
+                    <h2 class="text-lg font-semibold mb-4">用药提醒</h2>
+                     <div id="medication-list" class="space-y-4">
+                         <!-- Medication reminders will load here -->
+                        <p class="text-gray-500">正在加载用药提醒...</p>
+                        </div>
+                     <!-- Add/Edit Form Placeholder -->
+                            </div>
+
+                <!-- Section: Health Data -->
+                 <div id="health-data" class="content-section">
+                    <h2 class="text-lg font-semibold mb-4">健康数据</h2>
+                    <div class="mb-4">
+                        <label for="health-data-type-filter" class="mr-2">数据类型:</label>
+                        <select id="health-data-type-filter" class="border rounded p-1">
+                            <option value="">全部</option>
+                            <option value="blood_pressure">血压</option>
+                            <option value="blood_sugar">血糖</option>
+                            <option value="weight">体重</option>
+                        </select>
+                            </div>
+                    <div id="health-data-list" class="space-y-4">
+                         <!-- Health data will load here -->
+                         <p class="text-gray-500">正在加载健康数据...</p>
+                        </div>
+                     <!-- Add/Edit Form Placeholder -->
+                     <!-- Chart Placeholder -->
+                     <div id="health-data-chart" class="mt-6 h-64 bg-gray-100 rounded flex items-center justify-center text-gray-400">图表区域</div>
+    </div>
+
+                <!-- Section: Health Knowledge -->
+                 <div id="health-knowledge" class="content-section">
+                    <h2 class="text-lg font-semibold mb-4">健康知识</h2>
+                     <div class="prose max-w-none"> <!-- Using prose for basic markdown-like styling -->
+                        <h3>常见疾病预防</h3>
+                        <p>保持健康的生活方式是预防多种常见疾病的关键...</p>
+                        <ul>
+                            <li>饮食均衡：多吃蔬菜水果，减少红肉和加工食品摄入。</li>
+                            <li>适度运动：每周至少进行150分钟中等强度运动。</li>
+                            <li>充足睡眠：保证每晚7-8小时高质量睡眠。</li>
+                            <li>定期体检：及时发现潜在健康问题。</li>
+                        </ul>
+                        <h3>健康饮食指南</h3>
+                        <p>合理的饮食结构对维持身体健康至关重要...</p>
+                        <p>（此处可以添加更多预定义的健康知识内容）</p>
+        </div>
+    </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals (Edit Title, Delete Confirm, Add/Edit Forms for new sections) -->
+    <div id="edit-title-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden"><div class="bg-white rounded-lg p-6 w-96 shadow-lg"><h3 class="text-lg font-semibold mb-4">编辑会话标题</h3><input type="text" id="chat-title-input" placeholder="输入会话标题" class="w-full px-3 py-2 border border-gray-300 rounded-lg mb-4"><input type="hidden" id="edit-chat-id"><div class="flex justify-end space-x-2"><button id="cancel-edit-title" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100">取消</button><button id="save-chat-title" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">保存</button></div></div></div>
+    <div id="delete-confirm-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden"><div class="bg-white rounded-lg p-6 w-96 shadow-lg"><h3 class="text-lg font-semibold mb-4">确认删除</h3><p class="mb-4">您确定要删除这个会话吗？此操作不可撤销。</p><input type="hidden" id="delete-chat-id"><div class="flex justify-end space-x-2"><button id="cancel-delete" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100">取消</button><button id="confirm-delete" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">删除</button></div></div></div>
+    <!-- Add Member Modal (Placeholder) -->
+    <div id="add-member-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden"><div class="bg-white rounded-lg p-6 w-96 shadow-lg"><h3 class="text-lg font-semibold mb-4">添加家庭成员</h3><form id="add-member-form"><div class="mb-4"><label for="member-name" class="block mb-1">姓名/昵称:</label><input type="text" id="member-name" required class="w-full border rounded px-2 py-1"></div><div class="mb-4"><label for="member-type" class="block mb-1">关系:</label><select id="member-type" required class="w-full border rounded px-2 py-1"><option value="spouse">配偶</option><option value="child">孩子</option><option value="parent">父母</option><option value="other">其他</option></select></div><div class="flex justify-end space-x-2"><button type="button" id="cancel-add-member" class="px-4 py-2 border rounded">取消</button><button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded">保存</button></div></form></div></div>
+    <!-- Add/Edit Record Modal (Placeholder) -->
+    <!-- Add/Edit Medication Modal (Placeholder) -->
+    <!-- Add/Edit Data Modal (Placeholder) -->
+
+
+<script>
+    // --- State Variables ---
+    let currentMemberId = null; // ID of the currently selected family member
+    let currentSection = 'health-consultation'; // ID of the currently active content section
+    let familyMembers = []; // Array to hold family member data
+    let conversationId = getConversationIdFromUrl() || null; // Chat conversation ID
+    const chatTitles = {}; // Store chat titles locally
+
+    // --- DOM Elements ---
+    const mainTitle = document.getElementById('main-title');
+    const sidebarNavButtons = document.querySelectorAll('.nav-button');
+    const contentSections = document.querySelectorAll('.content-section');
+    const familyMemberListContainer = document.getElementById('family-member-list');
+    const addMemberBtn = document.getElementById('add-member-btn');
+    const addMemberModal = document.getElementById('add-member-modal');
+    const cancelAddMemberBtn = document.getElementById('cancel-add-member');
+    const addMemberForm = document.getElementById('add-member-form');
+    // Chat related elements
+    const welcomeCard = document.getElementById('welcome-card');
+    const chatContainer = document.getElementById('chat-container');
+    const newConsultBtn = document.getElementById('new-consult-btn');
+    const closeChatBtn = document.getElementById('close-chat-btn');
+    const messagesContainer = document.getElementById('messages-container');
+    const messageInput = document.getElementById('message-input');
+    const sendButton = document.getElementById('send-button');
+    const loadingSpinner = document.getElementById('loading-spinner');
+    const quickQuestionBtns = document.querySelectorAll('.quick-question-btn');
+    // Modal elements (chat)
+    const editTitleModal = document.getElementById('edit-title-modal');
+    const deleteConfirmModal = document.getElementById('delete-confirm-modal');
+    const chatTitleInput = document.getElementById('chat-title-input');
+    const editChatIdInput = document.getElementById('edit-chat-id');
+    const deleteChatIdInput = document.getElementById('delete-chat-id');
+    const cancelEditTitleBtn = document.getElementById('cancel-edit-title');
+    const saveChatTitleBtn = document.getElementById('save-chat-title');
+    const cancelDeleteBtn = document.getElementById('cancel-delete');
+    const confirmDeleteBtn = document.getElementById('confirm-delete');
+    // Section specific elements
+    const healthRecordListContainer = document.getElementById('health-record-list');
+    const medicationListContainer = document.getElementById('medication-list');
+    const healthDataListContainer = document.getElementById('health-data-list');
+    const healthDataTypeFilter = document.getElementById('health-data-type-filter');
+    // Header action buttons
+    const addRecordBtn = document.getElementById('add-record-btn');
+    const addMedicationBtn = document.getElementById('add-medication-btn');
+    const addDataBtn = document.getElementById('add-data-btn');
+
+    // --- Initialization ---
+    document.addEventListener('DOMContentLoaded', () => {
+        loadFamilyMembers(); // Load members first
+        setupEventListeners();
+        loadChatTitles(); // Load chat titles from localStorage
+        applyChatTitles(); // Apply titles to sidebar
+
+        // Determine initial section based on conversationId
+        if (conversationId) {
+            switchSection('health-consultation'); // Stay on chat if ID exists
+            showChatInterface(); // Show chat immediately
+        } else {
+            switchSection('health-consultation'); // Default to consultation
+            hideChatInterface(); // Show welcome card
+        }
+    });
+
+    // --- Event Listeners Setup ---
+    function setupEventListeners() {
+        // Sidebar Navigation
+        sidebarNavButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const sectionId = button.getAttribute('data-section');
+                switchSection(sectionId);
+            });
+        });
+
+        // Family Member Selection (delegated)
+        familyMemberListContainer.addEventListener('click', (event) => {
+            const memberItem = event.target.closest('.family-member-item');
+            if (memberItem) {
+                const memberId = memberItem.getAttribute('data-id');
+                selectMember(parseInt(memberId, 10));
+            }
+        });
+
+        // Add Member Button
+        addMemberBtn.addEventListener('click', () => {
+            addMemberModal.classList.remove('hidden');
+        });
+        cancelAddMemberBtn.addEventListener('click', () => {
+             addMemberModal.classList.add('hidden');
+             addMemberForm.reset();
+        });
+        addMemberForm.addEventListener('submit', handleAddMember);
+
+
+        // Chat Functionality Buttons
+        newConsultBtn.addEventListener('click', startNewConsultation);
+        closeChatBtn.addEventListener('click', hideChatInterface);
+        sendButton.addEventListener('click', handleSend);
+        messageInput.addEventListener('keypress', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } });
+        quickQuestionBtns.forEach(btn => btn.addEventListener('click', () => {
+            messageInput.value = btn.textContent.trim();
+            if (!conversationId) startNewConsultation(); // Start chat if not already in one
+            else showChatInterface(); // Ensure chat is visible
+            handleSend();
+        }));
+
+        // Chat History List Actions (delegated)
+        document.getElementById('chat-history-list').addEventListener('click', (event) => {
+             const editBtn = event.target.closest('.edit-title-btn');
+             const deleteBtn = event.target.closest('.delete-chat-btn');
+             if (editBtn) {
+                 event.preventDefault(); event.stopPropagation();
+                 const chatId = editBtn.getAttribute('data-chat-id');
+                 console.log('Opening edit modal for chat:', chatId);
+                 openEditTitleModal(chatId);
+             } else if (deleteBtn) {
+                 event.preventDefault(); event.stopPropagation();
+                 const chatId = deleteBtn.getAttribute('data-chat-id');
+                 console.log('Opening delete modal for chat:', chatId);
+                 openDeleteConfirmModal(chatId);
+             }
+             // Clicking the link itself is handled by the browser navigation via href
+         });
+
+
+        // Modal Buttons
+        cancelEditTitleBtn.addEventListener('click', closeEditTitleModal);
+        saveChatTitleBtn.addEventListener('click', handleSaveTitle);
+        cancelDeleteBtn.addEventListener('click', closeDeleteConfirmModal);
+        confirmDeleteBtn.addEventListener('click', handleDeleteChat);
+
+        // Health Data Filter
+        healthDataTypeFilter.addEventListener('change', () => {
+            if (currentMemberId) {
+                loadHealthData(currentMemberId); // Reload data with filter
+            }
+        });
+
+        // Placeholder listeners for add buttons in header - REMOVED
+        // addRecordBtn.addEventListener('click', () => alert('添加健康记录功能待实现'));
+        // addMedicationBtn.addEventListener('click', () => alert('添加用药提醒功能待实现'));
+        // addDataBtn.addEventListener('click', () => alert('添加健康数据功能待实现'));
+
+    }
+
+    // --- Section Switching Logic ---
+    function switchSection(sectionId) {
+        currentSection = sectionId;
+        console.log("Switching to section:", sectionId);
+
+        // Update sidebar button active state
+        sidebarNavButtons.forEach(button => {
+            if (button.getAttribute('data-section') === sectionId) {
+                button.classList.add('active');
+            } else {
+                button.classList.remove('active');
+            }
+        });
+
+        // Show/hide content sections
+        contentSections.forEach(section => {
+            if (section.id === sectionId) {
+                section.classList.add('active');
+            } else {
+                section.classList.remove('active');
+            }
+        });
+
+        // Update main title
+        const activeButton = document.querySelector(`.nav-button[data-section="${sectionId}"] span`);
+        mainTitle.textContent = activeButton ? activeButton.textContent : '家庭医生';
+
+        // Show/hide appropriate add buttons
+        document.getElementById('new-consult-btn').style.display = (sectionId === 'health-consultation') ? 'flex' : 'none';
+        document.getElementById('add-record-btn').style.display = (sectionId === 'health-record') ? 'flex' : 'none';
+        document.getElementById('add-medication-btn').style.display = (sectionId === 'medication-reminder') ? 'flex' : 'none';
+        document.getElementById('add-data-btn').style.display = (sectionId === 'health-data') ? 'flex' : 'none';
+
+        // Load data for the new section if needed (and a member is selected)
+        if (currentMemberId) {
+            loadDataForSection(sectionId, currentMemberId);
+        } else if (sectionId !== 'health-consultation' && sectionId !== 'health-knowledge') {
+            // Display message if no member is selected for data-driven sections
+            displayNoMemberSelected(sectionId);
+        }
+
+        // Special handling for chat section
+        if (sectionId === 'health-consultation') {
+    if (conversationId) {
+        showChatInterface();
+            } else {
+                hideChatInterface(); // Show welcome card if no active chat
+            }
+        } else {
+            // Don't hide welcome card if navigating away from chat without an active conversation
+             if (conversationId) hideChatInterface(); // Ensure chat is hidden if navigating away
+        }
+    }
+
+    function loadDataForSection(sectionId, memberId) {
+         console.log(`Loading data for section ${sectionId}, member ${memberId}`);
+         switch (sectionId) {
+            case 'health-record':
+                loadHealthRecords(memberId);
+                break;
+            case 'medication-reminder':
+                loadMedications(memberId);
+                break;
+            case 'health-data':
+                loadHealthData(memberId);
+                break;
+            // health-consultation is handled separately by chat functions
+            // health-knowledge is static content
+        }
+    }
+
+     function displayNoMemberSelected(sectionId) {
+        let container;
+        if (sectionId === 'health-record') container = healthRecordListContainer;
+        else if (sectionId === 'medication-reminder') container = medicationListContainer;
+        else if (sectionId === 'health-data') container = healthDataListContainer;
+
+        if (container) {
+            container.innerHTML = '<p class="text-gray-500 text-center">请先在左侧选择一位家庭成员。</p>';
+        }
+    }
+
+
+    // --- Family Member Logic ---
+    function loadFamilyMembers() {
+        console.log("Loading family members...");
+        fetch('/api/family-members')
+            .then(response => response.ok ? response.json() : Promise.reject('Failed to load members'))
+            .then(data => {
+                console.log("Family members received:", data);
+                familyMembers = data; // Store member data
+                renderFamilyMembers(familyMembers);
+                // Select the first member by default if none is selected
+                if (!currentMemberId && familyMembers.length > 0) {
+                    currentMemberId = familyMembers[0].id; // Set current member ID directly
+                    highlightSelectedMember(currentMemberId); // Update UI
+                    // Reload data for the current view and member
+                    loadDataForSection(currentSection, currentMemberId);
+                } else if (currentMemberId) {
+                    // Re-apply active state if a member was already selected
+                    highlightSelectedMember(currentMemberId);
+                    // Reload data for the current view and member
+                    loadDataForSection(currentSection, currentMemberId);
+                }
+            })
+        .catch(error => {
+                console.error("Error loading family members:", error);
+                familyMemberListContainer.innerHTML = '<p class="text-red-500">无法加载成员列表。</p>';
+            });
+    }
+
+    function renderFamilyMembers(members) {
+        familyMemberListContainer.innerHTML = ''; // Clear loading/error message
+        if (!members || members.length === 0) {
+            familyMemberListContainer.innerHTML = '<p class="text-gray-500 text-center">暂无家庭成员。</p>';
+            return;
+        }
+        members.forEach(member => {
+            // Simple avatar based on type (customize as needed)
+            let avatarChar = member.memberName.charAt(0);
+            let avatarColor = 'bg-gray-200';
+            switch(member.memberType) {
+                case 'self': avatarColor = 'bg-blue-100 text-blue-600'; avatarChar = '我'; break;
+                case 'spouse': avatarColor = 'bg-pink-100 text-pink-600'; avatarChar = '妻'; break; // Simplified
+                case 'child': avatarColor = 'bg-purple-100 text-purple-600'; avatarChar = '子'; break; // Simplified
+                case 'parent': avatarColor = 'bg-yellow-100 text-yellow-600'; avatarChar = '父'; break; // Simplified
+            }
+
+            const memberDiv = document.createElement('button');
+            memberDiv.className = 'family-member-item w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors flex items-center space-x-3';
+            memberDiv.setAttribute('data-id', member.id);
+            memberDiv.innerHTML = `
+                <div class="w-6 h-6 rounded-full ${avatarColor} flex items-center justify-center text-xs font-bold flex-shrink-0">${avatarChar}</div>
+                <span>${member.memberName}</span>
+                <!-- Add edit/delete buttons if needed -->
+            `;
+            familyMemberListContainer.appendChild(memberDiv);
+        });
+        // After rendering, highlight the selected member if one is selected
+         if (currentMemberId) {
+             highlightSelectedMember(currentMemberId);
+         }
+    }
+
+     function highlightSelectedMember(memberId) {
+        document.querySelectorAll('.family-member-item').forEach(el => {
+             el.classList.remove('active'); // Remove active class from all
+             if (parseInt(el.getAttribute('data-id'), 10) === memberId) {
+                 el.classList.add('active'); // Add active class to the selected one
+             }
+         });
+     }
+
+
+    function selectMember(memberId) {
+        if (currentMemberId === memberId) return; // No change
+        console.log("Selecting member:", memberId);
+        currentMemberId = memberId;
+
+        highlightSelectedMember(memberId); // Update UI
+
+        // Load data relevant to the current section for the newly selected member
+        loadDataForSection(currentSection, memberId);
+    }
+
+    function handleAddMember(event) {
+         event.preventDefault();
+         const name = document.getElementById('member-name').value;
+         const type = document.getElementById('member-type').value;
+         if (!name || !type) {
+             alert('请填写成员姓名和关系');
+             return;
+         }
+         const newMember = { memberName: name, memberType: type };
+         console.log("Adding member:", newMember);
+
+         fetch('/api/family-members', {
+             method: 'POST',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify(newMember)
+        })
+        .then(response => {
+             if (!response.ok) return Promise.reject('Failed to add member');
+             return response.json(); // Or just check ok status if boolean is returned
+         })
+         .then(success => {
+             if (success) { // Assuming backend returns boolean or newly created member object
+                 addMemberModal.classList.add('hidden');
+                 addMemberForm.reset();
+                 loadFamilyMembers(); // Reload the list
+                 alert('成员添加成功！');
+            } else {
+                  throw new Error('Backend indicated failure');
+            }
+        })
+        .catch(error => {
+             console.error("Error adding member:", error);
+             alert('添加成员失败，请稍后重试。');
+         });
+     }
+
+
+    // --- Data Loading Functions (Placeholders) ---
+    function loadHealthRecords(memberId) {
+        console.log(`Fetching health records for member ${memberId}...`);
+        healthRecordListContainer.innerHTML = '<p class="text-gray-500">加载中...</p>'; // Show loading
+        fetch(`/api/health-records/member/${memberId}`)
+            .then(response => response.ok ? response.json() : Promise.reject('Failed to load records'))
+            .then(records => {
+                console.log("Health records received:", records);
+                renderHealthRecords(records);
+            })
+            .catch(error => {
+                console.error("Error loading health records:", error);
+                healthRecordListContainer.innerHTML = '<p class="text-red-500">无法加载健康记录。</p>';
+            });
+    }
+
+    function renderHealthRecords(records) {
+        healthRecordListContainer.innerHTML = '';
+        if (!records || records.length === 0) {
+            healthRecordListContainer.innerHTML = '<p class="text-gray-500 text-center">暂无健康记录。</p>';
+            return;
+        }
+        records.forEach(record => {
+            const div = document.createElement('div');
+            div.className = 'p-4 bg-white rounded shadow border';
+            // Format date nicely
+            const recordDate = new Date(record.recordDate).toLocaleDateString('zh-CN');
+            div.innerHTML = `
+                <div class="flex justify-between items-center mb-2">
+                    <h4 class="font-semibold">${record.title} (${record.recordType || '未知类型'})</h4>
+                    <span class="text-sm text-gray-500">${recordDate}</span>
+                </div>
+                <p class="text-gray-700">${record.content || '无详细内容'}</p>
+                <!-- Add Edit/Delete buttons here -->
+            `;
+            healthRecordListContainer.appendChild(div);
+        });
+    }
+
+    function loadMedications(memberId) {
+        console.log(`Fetching medications for member ${memberId}...`);
+        medicationListContainer.innerHTML = '<p class="text-gray-500">加载中...</p>';
+         fetch(`/api/medications/member/${memberId}`)
+            .then(response => response.ok ? response.json() : Promise.reject('Failed to load medications'))
+            .then(medications => {
+                console.log("Medications received:", medications);
+                renderMedications(medications);
+            })
+            .catch(error => {
+                console.error("Error loading medications:", error);
+                medicationListContainer.innerHTML = '<p class="text-red-500">无法加载用药提醒。</p>';
+            });
+    }
+
+     function renderMedications(medications) {
+        medicationListContainer.innerHTML = '';
+        if (!medications || medications.length === 0) {
+            medicationListContainer.innerHTML = '<p class="text-gray-500 text-center">暂无用药提醒。</p>';
+            return;
+        }
+        medications.forEach(med => {
+            const div = document.createElement('div');
+             div.className = `p-4 bg-white rounded shadow border ${med.status === 1 ? '' : 'opacity-50'}`; // Dim inactive meds
+             const startDate = med.startDate ? new Date(med.startDate).toLocaleDateString('zh-CN') : '未指定';
+             const endDate = med.endDate ? new Date(med.endDate).toLocaleDateString('zh-CN') : '长期';
+             div.innerHTML = `
+                <div class="flex justify-between items-center mb-2">
+                    <h4 class="font-semibold">${med.medicineName} ${med.status === 1 ? '' : '(已停用)'}</h4>
+                    <span class="text-sm text-gray-500">${startDate} - ${endDate}</span>
+                </div>
+                <p class="text-gray-700">用法: ${med.dosage || '未指定'} / ${med.frequency || '未指定'}</p>
+                ${med.remindTimes ? `<p class="text-gray-700">提醒时间: ${med.remindTimes}</p>` : ''}
+                ${med.notes ? `<p class="text-sm text-gray-500 mt-1">备注: ${med.notes}</p>` : ''}
+                 <!-- Add Edit/Delete/Toggle Status buttons here -->
+             `;
+            medicationListContainer.appendChild(div);
+        });
+    }
+
+
+    function loadHealthData(memberId) {
+        const selectedType = healthDataTypeFilter.value;
+        console.log(`Fetching health data for member ${memberId}, type: ${selectedType || 'all'}...`);
+        healthDataListContainer.innerHTML = '<p class="text-gray-500">加载中...</p>';
+        let apiUrl = `/api/health-data/member/${memberId}`;
+        if (selectedType) {
+            apiUrl += `?dataType=${selectedType}`;
+        }
+         fetch(apiUrl)
+            .then(response => response.ok ? response.json() : Promise.reject('Failed to load health data'))
+            .then(data => {
+                console.log("Health data received:", data);
+                renderHealthData(data);
+                // Potentially update a chart here
+                updateHealthChart(data, selectedType); // Placeholder for chart update
+            })
+            .catch(error => {
+                console.error("Error loading health data:", error);
+                healthDataListContainer.innerHTML = '<p class="text-red-500">无法加载健康数据。</p>';
+            });
+    }
+
+     function renderHealthData(data) {
+        healthDataListContainer.innerHTML = '';
+        if (!data || data.length === 0) {
+            healthDataListContainer.innerHTML = '<p class="text-gray-500 text-center">暂无健康数据。</p>';
+            return;
+        }
+        data.forEach(item => {
+            const div = document.createElement('div');
+             div.className = 'p-4 bg-white rounded shadow border';
+             const recordTime = new Date(item.recordTime).toLocaleString('zh-CN');
+             let typeName = item.dataType;
+             if (item.dataType === 'blood_pressure') typeName = '血压';
+             else if (item.dataType === 'blood_sugar') typeName = '血糖';
+             else if (item.dataType === 'weight') typeName = '体重';
+
+             div.innerHTML = `
+                <div class="flex justify-between items-center mb-2">
+                    <h4 class="font-semibold">${typeName}: ${item.value} ${item.unit || ''}</h4>
+                    <span class="text-sm text-gray-500">${recordTime}</span>
+                </div>
+                ${item.notes ? `<p class="text-sm text-gray-500 mt-1">备注: ${item.notes}</p>` : ''}
+                 <!-- Add Edit/Delete buttons here -->
+             `;
+            healthDataListContainer.appendChild(div);
+        });
+    }
+
+     // Placeholder for chart update function
+     function updateHealthChart(data, type) {
+        console.log("Updating chart with data:", data, "Type:", type);
+        const chartContainer = document.getElementById('health-data-chart');
+        // In a real application, you would use a charting library (e.g., Chart.js, ECharts)
+        // to process the 'data' and render the appropriate chart based on 'type'.
+        if (data && data.length > 0) {
+             chartContainer.textContent = `显示 ${type || '所有'} 类型数据的图表 (共 ${data.length} 条记录)`;
+             chartContainer.classList.remove('text-gray-400', 'items-center', 'justify-center'); // Adjust styling
+        } else {
+             chartContainer.textContent = '图表区域 (无数据显示)';
+             chartContainer.classList.add('text-gray-400', 'items-center', 'justify-center');
+        }
+    }
+
+
+    // --- Chat Logic (Existing Functions Modified Slightly) ---
+     function startNewConsultation() {
+        console.log("Starting new consultation...");
+        conversationId = generateUUID(); // Generate a new ID
+        messageInput.value = ''; // Clear input
+        messagesContainer.innerHTML = ''; // Clear previous messages
+        addMessage('您好，我是您的AI家庭医生助手。请问您今天有什么健康问题需要咨询？', 'ai'); // Add initial AI message
+        updateUrlForNewChat(conversationId); // Update browser URL
+        showChatInterface(); // Show chat container
+        switchSection('health-consultation'); // Ensure consultation section is active
+    }
+
+    function showChatInterface() {
+        welcomeCard.classList.add('hidden');
+        chatContainer.classList.remove('hidden');
+        messagesContainer.scrollTop = messagesContainer.scrollHeight; // Scroll to bottom
+        messageInput.focus();
+        // If loading existing chat, load history
+         if (conversationId && messagesContainer.children.length <= 1) { // Only load if not already loaded or just started
+             loadChatHistory();
+         }
+    }
+
+    function hideChatInterface() {
+        chatContainer.classList.add('hidden');
+        welcomeCard.classList.remove('hidden');
+        // When hiding, maybe clear the current conversationId if user didn't send message? Optional.
+         // conversationId = null; // Uncomment if you want to reset when closing an empty chat
+         // updateUrlForNewChat(null); // Remove ID from URL if resetting
+    }
+
+     function updateUrlForNewChat(newId) {
+        const url = new URL(window.location);
+        if (newId) {
+            url.searchParams.set('id', newId);
+        } else {
+            url.searchParams.delete('id');
+        }
+        window.history.pushState({ path: url.href }, '', url.href); // Use pushState to allow back navigation
+         // Apply title if it exists for the new chat ID
+         applyChatTitles();
+         // We might need to refresh the sidebar link state if using pushState heavily
+     }
+
+
+    function loadChatHistory() {
+        if (!conversationId) return;
+        messagesContainer.innerHTML = '<p class="text-gray-500 text-center">加载历史记录...</p>'; // Loading indicator
+        console.log('Attempting to load chat history for: ' + conversationId);
+        fetch(`/ai/history/chat/${conversationId}`) // Endpoint is correct from previous steps
+            .then(response => {
+                 if (!response.ok) return Promise.reject(`HTTP error! status: ${response.status}`);
+                 return response.json();
+            })
+            .then(data => {
+                console.log('Received history messages: ', data);
+                messagesContainer.innerHTML = ''; // Clear loading message
+                if (data && data.length > 0) {
+                    data.forEach(message => {
+                        const type = message.role === 'user' ? 'user' : 'ai'; // Correctly maps 'assistant' or others to 'ai'
+                        addMessage(message.content, type, false, false); // Add message without scrolling yet
+                    });
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight; // Scroll after all messages added
+                } else {
+                    addMessage('您好，我是您的AI家庭医生助手。请问您今天有什么健康问题需要咨询？', 'ai'); // Welcome if no history
+                }
+            })
+            .catch(error => {
+                console.error('Error loading chat history:', error);
+                messagesContainer.innerHTML = ''; // Clear loading message
+                addMessage('无法加载聊天记录，请稍后重试。', 'ai', true); // Show error message
+            });
+    }
+
+    function addMessage(content, type, isError = false, shouldScroll = true) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `${type}-message flex items-start space-x-3 max-w-3xl ${type === 'user' ? 'ml-auto justify-end' : ''}`;
+
+        if (type === 'ai') {
+            const avatarDiv = document.createElement('div');
+            avatarDiv.className = 'flex-shrink-0 w-8 h-8 rounded-full bg-green-100 flex items-center justify-center';
+            avatarDiv.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`;
+            messageDiv.appendChild(avatarDiv);
+        }
+
+        const bubble = document.createElement('div');
+        bubble.className = type === 'user'
+            ? 'bg-green-600 text-white rounded-lg px-4 py-2 shadow-sm'
+            : `bg-gray-50 rounded-lg px-4 py-2 shadow-sm ${isError ? 'text-red-500' : 'text-gray-800'}`;
+
+        const contentSpan = document.createElement('div');
+        // IMPORTANT: Add 'prose' class for Tailwind Typography if you want markdown styling inside chat
+        contentSpan.className = `message-content ${type === 'ai' ? 'markdown-content' : ''}`;
+
+        // Render Markdown for AI messages
+        if (type === 'ai' && content) {
+             // Ensure marked is loaded before using
+             if (typeof marked !== 'undefined') {
+                 // Sanitize potentially harmful HTML before parsing markdown
+                 // Using a basic sanitizer. For production, use DOMPurify or similar.
+                 const sanitizedContent = content.replace(/<script.*?>.*?<\/script>/gi, ''); // Basic script tag removal
+                 contentSpan.innerHTML = marked.parse(sanitizedContent || ''); // Use marked.parse
+             } else {
+                 console.warn("Marked.js not loaded, displaying raw AI content.");
+                 contentSpan.textContent = content;
+             }
+        } else {
+            contentSpan.textContent = content;
+        }
+
+        bubble.appendChild(contentSpan);
+        messageDiv.appendChild(bubble);
+        messagesContainer.appendChild(messageDiv);
+
+        if (shouldScroll) {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        return bubble; // Return the bubble element
+    }
+
+
+    function handleSend() {
+        const message = messageInput.value.trim();
+        if (!message || !conversationId) { // Ensure we have a conversation ID
+        if (!message) return;
+            // If no conversationId, maybe start a new one?
+            alert("请先通过点击\"新建咨询\"或选择一个历史会话来开始。");
+            // startNewConsultation(); // Option: uncomment to auto-start
+            // setTimeout(handleSend, 100); // Retry after starting
+            return;
+        }
+
+
+        addMessage(message, 'user');
+        messageInput.value = ''; // Clear input after sending
+
+        // API URL for streaming chat
+        const apiUrl = new URL(window.location.origin + '/api/chat/generate_stream');
+        apiUrl.searchParams.append('id', conversationId);
+        apiUrl.searchParams.append('prompt', message);
+        
+        sendButton.disabled = true;
+        loadingSpinner.classList.remove('hidden');
+
+        const eventSource = new EventSource(apiUrl);
+        let aiMessageBubble = null; // Reference to the AI message bubble div
+        let accumulatedResponse = ""; // Store full AI response
+        let firstChunk = true; // Flag to handle title generation
+
+        eventSource.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                 // Adjust based on actual stream response structure
+                 const contentChunk = data.result?.output?.content || data.result?.output?.text || ''; // Adapt to your backend stream format
+                 const finishReason = data.result?.metadata?.finishReason; // Adapt as needed
+
+                if (firstChunk && contentChunk) {
+                    // Create the AI message bubble on the first chunk
+                    aiMessageBubble = addMessage("", 'ai', false, true); // Create bubble, enable scroll
+                    firstChunk = false;
+                     // Set default title if none exists for this chat
+                     if (!chatTitles[conversationId]) {
+                         const defaultTitle = message.substring(0, 15) + (message.length > 15 ? '...' : '');
+                         updateChatTitle(conversationId, defaultTitle); // Update local and potentially server
+                     }
+                }
+
+                if (contentChunk && aiMessageBubble) {
+                    accumulatedResponse += contentChunk;
+                    // Update the content using Markdown rendering
+                    const contentSpan = aiMessageBubble.querySelector('.message-content');
+                     if (contentSpan && typeof marked !== 'undefined') {
+                         const sanitizedContent = accumulatedResponse.replace(/<script.*?>.*?<\/script>/gi, '');
+                         contentSpan.innerHTML = marked.parse(sanitizedContent || '');
+                     } else if (contentSpan) {
+                         contentSpan.textContent = accumulatedResponse; // Fallback to text
+                     }
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight; // Keep scrolling
+                }
+
+                if (finishReason === 'STOP' || finishReason === 'stop') { // Check common stop reasons
+                    eventSource.close();
+                    sendButton.disabled = false;
+                    loadingSpinner.classList.add('hidden');
+                    // Maybe refresh chat history list in sidebar if a new chat was just titled
+                    // refreshChatHistoryList(); // Implement this if needed
+                }
+            } catch (error) {
+                console.error('Error parsing stream data:', error, 'Data:', event.data);
+                // Don't close on single parse error maybe? Or add error message?
+                 // addMessage("处理响应时出错。", 'ai', true);
+            }
+        };
+
+        eventSource.onerror = (error) => {
+            console.error('EventSource failed:', error);
+            eventSource.close();
+            sendButton.disabled = false;
+            loadingSpinner.classList.add('hidden');
+            addMessage('抱歉，与AI助手的连接中断，请检查网络或稍后重试。', 'ai', true);
+        };
+    }
+
+
+    // --- Chat Title Management ---
+    function loadChatTitles() {
+        const saved = localStorage.getItem('chatTitles');
+        if (saved) {
+            Object.assign(chatTitles, JSON.parse(saved));
+        }
+    }
+
+    function saveChatTitles() {
+        localStorage.setItem('chatTitles', JSON.stringify(chatTitles));
+    }
+
+     function applyChatTitles() {
+         document.querySelectorAll('.chat-title').forEach(el => {
+             const id = el.getAttribute('data-chat-id');
+             if (chatTitles[id]) {
+                 el.textContent = chatTitles[id];
+                 el.setAttribute('title', chatTitles[id]); // Add full title on hover
+             } else {
+                 // Use default short ID if no title
+                  el.textContent = id.substring(0, 8) + '...';
+                  el.setAttribute('title', id); // Show full ID on hover
+             }
+         });
+     }
+
+     function updateChatTitle(chatId, newTitle) {
+        if (!chatId || !newTitle) return;
+        chatTitles[chatId] = newTitle.trim();
+        saveChatTitles(); // Save to localStorage
+        applyChatTitles(); // Update UI immediately
+
+        // Persist to server (fire and forget for now)
+        fetch('/api/history/title', { // Using the PUT endpoint created earlier
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chatId: chatId, title: newTitle.trim() })
+        }).catch(err => console.error("Failed to save title to server:", err));
+
+         // Also update the sidebar dynamically if possible, or require a refresh?
+         // For now, applyChatTitles handles the visible ones. If a new chat was added,
+         // we might need a more robust way to update the sidebar list.
+     }
+
+
+    function openEditTitleModal(chatId) {
+        editChatIdInput.value = chatId;
+        chatTitleInput.value = chatTitles[chatId] || ''; // Get current title
+        editTitleModal.classList.remove('hidden');
+        chatTitleInput.focus();
+    }
+
+    function closeEditTitleModal() {
+        editTitleModal.classList.add('hidden');
+    }
+
+    function handleSaveTitle() {
+        const chatId = editChatIdInput.value;
+        const newTitle = chatTitleInput.value;
+        if (chatId && newTitle) {
+            updateChatTitle(chatId, newTitle);
+        }
+                closeEditTitleModal();
+    }
+
+    function openDeleteConfirmModal(chatId) {
+        deleteChatIdInput.value = chatId;
+        deleteConfirmModal.classList.remove('hidden');
+    }
+
+     function closeDeleteConfirmModal() {
+        deleteConfirmModal.classList.add('hidden');
+    }
+
+    function handleDeleteChat() {
+        const chatId = deleteChatIdInput.value;
+        if (!chatId) return;
+
+        console.log("Deleting chat:", chatId);
+        // Delete from server
+        fetch(`/api/history/${chatId}`, { method: 'DELETE' }) // Correct DELETE endpoint
+            .then(response => {
+                if (!response.ok) return Promise.reject('Server failed to delete chat');
+                return response.json();
+            })
+        .then(data => {
+                 if (data.success) {
+                    console.log("Chat deleted successfully from server");
+                    // Delete from local storage
+                    delete chatTitles[chatId];
+                    saveChatTitles();
+
+                    // If the deleted chat was the current one, redirect or clear state
+                    if (conversationId === chatId) {
+                        conversationId = null;
+                         window.location.href = "/"; // Redirect to homepage
+                         // Or alternatively:
+                         // hideChatInterface();
+                         // switchSection('health-consultation'); // Go back to welcome
+                         // updateUrlForNewChat(null);
+            } else {
+                         // Just remove from sidebar visually (requires DOM manipulation or page reload)
+                         window.location.reload(); // Simple solution: reload page
+                    }
+                 } else {
+                    throw new Error(data.message || 'Unknown error during deletion');
+            }
+        })
+        .catch(error => {
+                console.error("Error deleting chat:", error);
+                alert('删除会话失败：' + error.message);
+            })
+            .finally(() => {
+                 closeDeleteConfirmModal();
+            });
+    }
+
+
+    // --- Utility Functions ---
+    function getConversationIdFromUrl() {
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get('id');
+    }
+
+    function generateUUID() {
+        // Standard crypto UUID v4 generation
+        return crypto.randomUUID();
+    }
+
+    // --- 功能模块添加按钮连接后端 ---
+    // 添加健康记录
+    document.getElementById('add-record-btn').addEventListener('click', function() {
+        if (!currentMemberId) {
+            alert('请先选择一个家庭成员');
+            return;
+        }
+        
+        // 创建模态框
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+        modal.innerHTML = `
+            <div class="bg-white rounded-lg p-6 w-full max-w-md">
+                <h3 class="text-lg font-semibold mb-4">添加健康记录</h3>
+                <form id="health-record-form">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">记录日期</label>
+                        <input type="date" name="recordDate" class="w-full px-3 py-2 border border-gray-300 rounded-md" required>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">记录类型</label>
+                        <select name="recordType" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                            <option value="症状描述">症状描述</option>
+                            <option value="就诊记录">就诊记录</option>
+                            <option value="检查报告">检查报告</option>
+                            <option value="手术记录">手术记录</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">标题</label>
+                        <input type="text" name="title" class="w-full px-3 py-2 border border-gray-300 rounded-md" required>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">内容</label>
+                        <textarea name="content" rows="4" class="w-full px-3 py-2 border border-gray-300 rounded-md"></textarea>
+                    </div>
+                    <div class="flex justify-end space-x-2">
+                        <button type="button" class="px-4 py-2 border border-gray-300 rounded-md" id="cancel-record">取消</button>
+                        <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-md">保存</button>
+                    </div>
+                </form>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        
+        // 取消按钮事件
+        document.getElementById('cancel-record').addEventListener('click', function() {
+            document.body.removeChild(modal);
+        });
+        
+        // 提交表单事件
+        document.getElementById('health-record-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const record = {
+                familyMemberId: currentMemberId,
+                recordDate: formData.get('recordDate'),
+                recordType: formData.get('recordType'),
+                title: formData.get('title'),
+                content: formData.get('content')
+            };
+            
+            fetch('/api/health-records', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(record)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data) {
+                    alert('添加成功');
+                    document.body.removeChild(modal);
+                    // 刷新健康记录列表
+                    loadHealthRecords(currentMemberId);
+                } else {
+                    alert('添加失败');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('添加失败: ' + error);
+            });
+        });
+    });
+    
+    // 添加用药提醒
+    document.getElementById('add-medication-btn').addEventListener('click', function() {
+        if (!currentMemberId) {
+            alert('请先选择一个家庭成员');
+            return;
+        }
+        
+        // 创建模态框
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+        modal.innerHTML = `
+            <div class="bg-white rounded-lg p-6 w-full max-w-md">
+                <h3 class="text-lg font-semibold mb-4">添加用药提醒</h3>
+                <form id="medication-form">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">药品名称</label>
+                        <input type="text" name="medicineName" class="w-full px-3 py-2 border border-gray-300 rounded-md" required>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">用量</label>
+                        <input type="text" name="dosage" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="例如：1片">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">频率</label>
+                        <input type="text" name="frequency" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="例如：每日三次">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">提醒时间</label>
+                        <input type="text" name="remindTimes" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="例如：08:00,12:00,18:00">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">开始日期</label>
+                        <input type="date" name="startDate" class="w-full px-3 py-2 border border-gray-300 rounded-md" required>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">结束日期</label>
+                        <input type="date" name="endDate" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">备注</label>
+                        <textarea name="notes" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-md"></textarea>
+                    </div>
+                    <div class="flex justify-end space-x-2">
+                        <button type="button" class="px-4 py-2 border border-gray-300 rounded-md" id="cancel-medication">取消</button>
+                        <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-md">保存</button>
+                    </div>
+                </form>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        
+        // 取消按钮事件
+        document.getElementById('cancel-medication').addEventListener('click', function() {
+            document.body.removeChild(modal);
+        });
+        
+        // 提交表单事件
+        document.getElementById('medication-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const medication = {
+                familyMemberId: currentMemberId,
+                medicineName: formData.get('medicineName'),
+                dosage: formData.get('dosage'),
+                frequency: formData.get('frequency'),
+                remindTimes: formData.get('remindTimes'),
+                startDate: formData.get('startDate'),
+                endDate: formData.get('endDate') || null,
+                notes: formData.get('notes'),
+                status: 1
+            };
+            
+            fetch('/api/medications', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(medication)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data) {
+                    alert('添加成功');
+                    document.body.removeChild(modal);
+                    // 刷新用药提醒列表
+                    loadMedications(currentMemberId);
+                } else {
+                    alert('添加失败');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('添加失败: ' + error);
+            });
+        });
+    });
+    
+    // 添加健康数据
+    document.getElementById('add-data-btn').addEventListener('click', function() {
+        if (!currentMemberId) {
+            alert('请先选择一个家庭成员');
+            return;
+        }
+        
+        // 创建模态框
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+        modal.innerHTML = `
+            <div class="bg-white rounded-lg p-6 w-full max-w-md">
+                <h3 class="text-lg font-semibold mb-4">添加健康数据</h3>
+                <form id="health-data-form">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">数据类型</label>
+                        <select name="dataType" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                            <option value="blood_pressure">血压</option>
+                            <option value="blood_sugar">血糖</option>
+                            <option value="weight">体重</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">数值</label>
+                        <input type="text" name="value" class="w-full px-3 py-2 border border-gray-300 rounded-md" required placeholder="例如：120/80 或 5.5 或 70.5">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">单位</label>
+                        <input type="text" name="unit" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="例如：mmHg 或 mmol/L 或 kg">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">记录时间</label>
+                        <input type="datetime-local" name="recordTime" class="w-full px-3 py-2 border border-gray-300 rounded-md" required>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">备注</label>
+                        <textarea name="notes" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-md"></textarea>
+                    </div>
+                    <div class="flex justify-end space-x-2">
+                        <button type="button" class="px-4 py-2 border border-gray-300 rounded-md" id="cancel-data">取消</button>
+                        <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-md">保存</button>
+                    </div>
+                </form>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        
+        // 取消按钮事件
+        document.getElementById('cancel-data').addEventListener('click', function() {
+            document.body.removeChild(modal);
+        });
+        
+        // 提交表单事件
+        document.getElementById('health-data-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const healthData = {
+                familyMemberId: currentMemberId,
+                dataType: formData.get('dataType'),
+                value: formData.get('value'),
+                unit: formData.get('unit'),
+                recordTime: formData.get('recordTime'),
+                notes: formData.get('notes')
+            };
+            
+            fetch('/api/health-data', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(healthData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data) {
+                    alert('添加成功');
+                    document.body.removeChild(modal);
+                    // 刷新健康数据列表
+                    loadHealthData(currentMemberId);
+                } else {
+                    alert('添加失败');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('添加失败: ' + error);
+            });
+        });
+    });
+    
+    // 加载健康记录列表
+    function loadHealthRecords(memberId) {
+        const container = document.getElementById('health-record-list');
+        container.innerHTML = '<p class="text-center text-gray-500">加载中...</p>';
+        
+        fetch(`/api/health-records/member/${memberId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data && data.length > 0) {
+                    container.innerHTML = '';
+                    data.forEach(record => {
+                        const recordElement = document.createElement('div');
+                        recordElement.className = 'bg-white rounded-lg p-4 border border-gray-200 shadow-sm';
+                        recordElement.innerHTML = `
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h3 class="font-semibold text-lg">${record.title}</h3>
+                                    <p class="text-sm text-gray-500">${record.recordType} · ${record.recordDate}</p>
+                                </div>
+
+                            </div>
+                            <p class="mt-2">${record.content || '无内容'}</p>
+                        `;
+                        container.appendChild(recordElement);
+                    });
+                } else {
+                    container.innerHTML = '<p class="text-center text-gray-500">暂无健康记录</p>';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                container.innerHTML = '<p class="text-center text-red-500">加载失败</p>';
+            });
+    }
+    
+    // 加载用药提醒列表
+    function loadMedications(memberId) {
+        const container = document.getElementById('medication-list');
+        container.innerHTML = '<p class="text-center text-gray-500">加载中...</p>';
+        
+        fetch(`/api/medications/member/${memberId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data && data.length > 0) {
+                    container.innerHTML = '';
+                    data.forEach(medication => {
+                        const medicationElement = document.createElement('div');
+                        medicationElement.className = 'bg-white rounded-lg p-4 border border-gray-200 shadow-sm';
+                        medicationElement.innerHTML = `
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h3 class="font-semibold text-lg">${medication.medicineName}</h3>
+                                    <p class="text-sm text-gray-500">${medication.dosage || ''} · ${medication.frequency || ''}</p>
+                                    <p class="text-sm text-gray-500">${medication.startDate} 至 ${medication.endDate || '长期'}</p>
+                                </div>
+
+                            </div>
+                            <p class="mt-2">${medication.notes || '无备注'}</p>
+                        `;
+                        container.appendChild(medicationElement);
+                    });
+                } else {
+                    container.innerHTML = '<p class="text-center text-gray-500">暂无用药提醒</p>';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                container.innerHTML = '<p class="text-center text-red-500">加载失败</p>';
+            });
+    }
+    
+    // 加载健康数据列表
+    function loadHealthData(memberId) {
+        const container = document.getElementById('health-data-list');
+        container.innerHTML = '<p class="text-center text-gray-500">加载中...</p>';
+        
+        fetch(`/api/health-data/member/${memberId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data && data.length > 0) {
+                    container.innerHTML = '';
+                    data.forEach(healthData => {
+                        const dataElement = document.createElement('div');
+                        dataElement.className = 'bg-white rounded-lg p-4 border border-gray-200 shadow-sm';
+                        
+                        // 格式化数据类型显示
+                        let dataTypeDisplay = '其他';
+                        if (healthData.dataType === 'blood_pressure') dataTypeDisplay = '血压';
+                        else if (healthData.dataType === 'blood_sugar') dataTypeDisplay = '血糖';
+                        else if (healthData.dataType === 'weight') dataTypeDisplay = '体重';
+                        
+                        dataElement.innerHTML = `
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h3 class="font-semibold text-lg">${dataTypeDisplay}: ${healthData.value} ${healthData.unit || ''}</h3>
+                                    <p class="text-sm text-gray-500">${new Date(healthData.recordTime).toLocaleString()}</p>
+                                </div>
+
+                            </div>
+                            <p class="mt-2">${healthData.notes || '无备注'}</p>
+                        `;
+                        container.appendChild(dataElement);
+                    });
+                } else {
+                    container.innerHTML = '<p class="text-center text-gray-500">暂无健康数据</p>';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                container.innerHTML = '<p class="text-center text-red-500">加载失败</p>';
+            });
+    }
+
+    // 通用模态对话框函数
+    function showModal(title, description, fields, onSubmit) {
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+        
+        let fieldsHtml = '';
+        fields.forEach(field => {
+            if (field.type === 'text' || field.type === 'date' || field.type === 'datetime-local') {
+                fieldsHtml += `
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">${field.label}</label>
+                        <input type="${field.type}" name="${field.name}" class="w-full px-3 py-2 border border-gray-300 rounded-md" ${field.required ? 'required' : ''} ${field.placeholder ? `placeholder="${field.placeholder}"` : ''}>
+                    </div>
+                `;
+            } else if (field.type === 'select') {
+                let options = '';
+                field.options.forEach(option => {
+                    options += `<option value="${option.value}">${option.text}</option>`;
+                });
+                
+                fieldsHtml += `
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">${field.label}</label>
+                        <select name="${field.name}" class="w-full px-3 py-2 border border-gray-300 rounded-md" ${field.required ? 'required' : ''}>
+                            ${options}
+                        </select>
+                    </div>
+                `;
+            } else if (field.type === 'textarea') {
+                fieldsHtml += `
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">${field.label}</label>
+                        <textarea name="${field.name}" rows="${field.rows || 3}" class="w-full px-3 py-2 border border-gray-300 rounded-md" ${field.required ? 'required' : ''} ${field.placeholder ? `placeholder="${field.placeholder}"` : ''}></textarea>
+                    </div>
+                `;
+            }
+        });
+        
+        modal.innerHTML = `
+            <div class="bg-white rounded-lg p-6 w-full max-w-md">
+                <h3 class="text-lg font-semibold mb-2">${title}</h3>
+                ${description ? `<p class="text-gray-600 mb-4">${description}</p>` : ''}
+                <form id="modal-form">
+                    ${fieldsHtml}
+                    <div class="flex justify-end space-x-2">
+                        <button type="button" class="px-4 py-2 border border-gray-300 rounded-md" id="modal-cancel">取消</button>
+                        <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-md">确定</button>
+                    </div>
+                </form>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        
+        // 取消按钮事件
+        document.getElementById('modal-cancel').addEventListener('click', function() {
+            document.body.removeChild(modal);
+        });
+        
+        // 提交表单事件
+        document.getElementById('modal-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            onSubmit(new FormData(e.target));
+            document.body.removeChild(modal);
+        });
+    }
+    
+    document.getElementById('add-member-btn').addEventListener('click', function() {
+        // Replace this with actual API integration
+        showModal('添加家庭成员', '请输入新成员信息', [{
+            type: 'text',
+            name: 'memberName',
+            label: '成员姓名',
+            required: true
+        }, {
+            type: 'select',
+            name: 'memberType',
+            label: '成员类型',
+            options: [
+                { value: 'self', text: '本人' },
+                { value: 'spouse', text: '配偶' },
+                { value: 'child', text: '孩子' },
+                { value: 'parent', text: '父母' }
+            ],
+            required: true
+        }], function(formData) {
+            // Submit data to add family member
+            fetch('/api/family-members', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    memberName: formData.get('memberName'),
+                    memberType: formData.get('memberType')
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data) {
+                    alert('成员添加成功');
+                    // Reload family members
+                    loadFamilyMembers();
+                } else {
+                    alert('添加失败');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('添加失败: ' + error);
+            });
+        });
+    });
+</script>
+
+</body>
+</html>

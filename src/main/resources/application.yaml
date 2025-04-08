@@ -1,0 +1,61 @@
+server:
+  port: 9999
+spring:
+  # Datasource Configuration for MySQL
+  datasource:
+    url: jdbc:mysql://localhost:3306/family_health?useSSL=false&serverTimezone=UTC&characterEncoding=UTF-8&allowPublicKeyRetrieval=true
+    username: root
+    password: 123456
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    # Optional: Connection pool settings (using HikariCP by default)
+    # hikari:
+    #  maximum-pool-size: 10
+    #  minimum-idle: 5
+    #  idle-timeout: 30000
+
+  # SQL Initialization Configuration
+  sql:
+    init:
+      mode: always # Explicitly set initialization mode
+      # schema-locations: classpath:schema.sql # Optional: Explicitly point to schema if needed
+      # data-locations: classpath:data.sql # Optional: If you have a data seeding script
+
+  ai:
+    mcp:
+      client:
+        enabled: true
+        name: call-mcp-server
+        stdio:
+          servers-configuration: classpath:mcp-server.json
+    openai:
+      base-url: https://api.deepseek.com
+      api-key: sk-373ae669c88b432ead636ec0e06e9ac1
+      chat:
+        options:
+          model: deepseek-chat
+          temperature: 0.7
+
+# MyBatis Plus Configuration
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml # Location of Mapper XML files (if any)
+  type-aliases-package: com.ahucoding.rocket.callmcpserver.entity # Package containing your entity classes
+  configuration:
+    map-underscore-to-camel-case: true # Enable underscore to camel case mapping
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl # Use standard output for SQL logging (useful for debugging)
+  global-config:
+    db-config:
+      id-type: AUTO # Use database auto-increment for primary keys
+      # table-underline: true # Use if table names have underscores (seems not needed based on entities)
+
+#    openai:
+#      api-key: sk-c0cfcd0b9c5843b8b717d976f273f854
+#      base-url: https://dashscope.aliyuncs.com/compatible-mode
+#      chat:
+#        options:
+#          model: qwen-max-2025-01-25
+#          temperature: 0.8
+#        sse:
+#          connections:
+#            server1:
+#              #这里是你的Mcp服务端的暴露地址
+#              url: http://127.0.0.1:8080

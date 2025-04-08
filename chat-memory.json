@@ -1,0 +1,101 @@
+{
+  "c2250209-7871-47a3-8832-dcd7cb16f96e" : [ {
+    "messageType" : "USER",
+    "text" : "你好，查看我的mysql数据库",
+    "metadata" : {
+      "messageType" : "USER"
+    }
+  }, {
+    "messageType" : "ASSISTANT",
+    "text" : "你的MySQL数据库中包含以下数据库：\n\n1. b\n2. douyin\n3. elasticsearch\n4. family_health\n5. fooddb\n6. hm-cart\n7. hm-item\n8. hm-pay\n9. hm-trade\n10. hm-user\n11. hmall\n12. information_schema\n13. junjie\n14. mysql\n15. nacos\n16. performance_schema\n17. prize_system\n18. python\n19. ry\n20. ry-vue\n21. security-demo\n22. sky_take_out\n23. sys\n24. test\n\n如果你需要查看某个特定数据库的表或执行其他操作，请告诉我！",
+    "metadata" : {
+      "role" : "ASSISTANT",
+      "messageType" : "ASSISTANT",
+      "refusal" : "",
+      "finishReason" : "STOP",
+      "index" : 0,
+      "id" : "bd15dd49-4d24-4c28-b567-a917361721f0"
+    }
+  } ],
+  "dd16dd28-18b4-4084-89de-db8074debe29" : [ {
+    "messageType" : "USER",
+    "text" : "查看我的mysql数据库",
+    "metadata" : {
+      "messageType" : "USER"
+    }
+  }, {
+    "messageType" : "ASSISTANT",
+    "text" : "你的MySQL数据库中包含以下数据库：\n\n1. b\n2. douyin\n3. elasticsearch\n4. family_health\n5. fooddb\n6. hm-cart\n7. hm-item\n8. hm-pay\n9. hm-trade\n10. hm-user\n11. hmall\n12. information_schema\n13. junjie\n14. mysql\n15. nacos\n16. performance_schema\n17. prize_system\n18. python\n19. ry\n20. ry-vue\n21. security-demo\n22. sky_take_out\n23. sys\n24. test\n\n如果你需要查看某个特定数据库的表或执行其他查询，请告诉我！",
+    "metadata" : {
+      "role" : "ASSISTANT",
+      "messageType" : "ASSISTANT",
+      "finishReason" : "STOP",
+      "refusal" : "",
+      "index" : 0,
+      "id" : "87d21755-dc5a-4bdc-b78e-b896901d10e7"
+    }
+  }, {
+    "messageType" : "USER",
+    "text" : "查询family_health数据库有哪些表",
+    "metadata" : {
+      "messageType" : "USER"
+    }
+  }, {
+    "messageType" : "ASSISTANT",
+    "text" : "在 `family_health` 数据库中，有以下表：\n\n1. `family_member`\n2. `health_data`\n3. `health_record`\n4. `medication`\n\n如果你需要查看某个表的结构或数据，请告诉我！",
+    "metadata" : {
+      "role" : "ASSISTANT",
+      "messageType" : "ASSISTANT",
+      "finishReason" : "STOP",
+      "refusal" : "",
+      "index" : 0,
+      "id" : "78f43875-d168-4f0b-83a6-71bbc1f29fb5"
+    }
+  }, {
+    "messageType" : "USER",
+    "text" : "请你查询health_data表有哪些数据。",
+    "metadata" : {
+      "messageType" : "USER"
+    }
+  }, {
+    "messageType" : "ASSISTANT",
+    "text" : "在 `health_data` 表中，有以下数据记录：\n\n1. **血压记录**  \n   - 家庭成员ID: 1  \n   - 数据类型: `blood_pressure`  \n   - 值: `120/80`  \n   - 单位: `mmHg`  \n   - 记录时间: `2025-04-07 12:47:07`  \n   - 备注: `早上测量`  \n   - 创建时间: `2025-04-08 12:47:07`  \n   - 更新时间: `2025-04-08 12:47:07`  \n\n2. **血糖记录**  \n   - 家庭成员ID: 1  \n   - 数据类型: `blood_sugar`  \n   - 值: `5.8`  \n   - 单位: `mmol/L`  \n   - 记录时间: `2025-04-07 12:47:07`  \n   - 备注: `餐后2小时`  \n   - 创建时间: `2025-04-08 12:47:07`  \n   - 更新时间: `2025-04-08 12:47:07`  \n\n3. **体重记录**  \n   - 家庭成员ID: 1  \n   - 数据类型: `weight`  \n   - 值: `70.5`  \n   - 单位: `kg`  \n   - 记录时间: `2025-04-01 12:47:07`  \n   - 备注: `晨起空腹`  \n   - 创建时间: `2025-04-08 12:47:07`  \n   - 更新时间: `2025-04-08 12:47:07`  \n\n如果需要进一步分析或查询其他数据，请告诉我！",
+    "metadata" : {
+      "role" : "ASSISTANT",
+      "messageType" : "ASSISTANT",
+      "finishReason" : "STOP",
+      "refusal" : "",
+      "index" : 0,
+      "id" : "8da0f4cb-98c7-4d32-8318-1d582f37ab94"
+    }
+  }, {
+    "messageType" : "USER",
+    "text" : "请你编写一条数据插入这张表",
+    "metadata" : {
+      "messageType" : "USER"
+    }
+  }, {
+    "messageType" : "ASSISTANT",
+    "text" : "以下是一条用于向 `health_data` 表插入新数据的 SQL 语句示例。这条语句会插入一条新的健康数据记录（例如心率数据）：\n\n```sql\nINSERT INTO health_data (\n    family_member_id,\n    data_type,\n    value,\n    unit,\n    record_time,\n    notes,\n    created_at,\n    updated_at\n) VALUES (\n    1,                          -- 家庭成员ID\n    'heart_rate',               -- 数据类型（心率）\n    '72',                       -- 值（72次/分钟）\n    'bpm',                      -- 单位（次/分钟）\n    '2025-04-09 08:00:00',      -- 记录时间\n    '晨起静息心率',             -- 备注\n    NOW(),                      -- 创建时间（当前时间）\n    NOW()                       -- 更新时间（当前时间）\n);\n```\n\n### 说明：\n1. **`family_member_id`**：关联到 `family_member` 表中的成员ID。\n2. **`data_type`**：健康数据类型（如 `heart_rate`、`blood_pressure` 等）。\n3. **`value` 和 `unit`**：数据的值和单位。\n4. **`record_time`**：数据记录的日期和时间。\n5. **`notes`**：可选备注信息。\n6. **`created_at` 和 `updated_at`**：通常设置为当前时间（`NOW()`）。\n\n如果你需要插入其他类型的数据（如血压、血糖等），可以调整字段值。需要我帮你执行这条语句吗？",
+    "metadata" : {
+      "role" : "ASSISTANT",
+      "messageType" : "ASSISTANT",
+      "finishReason" : "STOP",
+      "refusal" : "",
+      "index" : 0,
+      "id" : "58a3d2c6-990d-4d68-bbd2-3909afe4d87f"
+    }
+  }, {
+    "messageType" : "USER",
+    "text" : "执行",
+    "metadata" : {
+      "messageType" : "USER"
+    }
+  }, {
+    "messageType" : "USER",
+    "text" : "将数据插入数据库表",
+    "metadata" : {
+      "messageType" : "USER"
+    }
+  } ]
+}

@@ -1,0 +1,25 @@
+{
+  "mcpServers": {
+    "fileSystem": {
+      "command": "E:\\nodejs\\npx.cmd",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "E:\\javake"
+      ]
+    },
+    "playwright": {
+      "command": "E:\\nodejs\\npx.cmd",
+      "args": [
+        "-y",
+        "@executeautomation/playwright-mcp-server"
+      ]
+    },
+    "database-tools": {
+      "command": "node",
+      "args": [
+        "E:/E/mcp/database-tools-main/index.js"
+      ]
+    }
+  }
+}
