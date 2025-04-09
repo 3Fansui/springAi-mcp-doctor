@@ -29,7 +29,7 @@ spring:
           servers-configuration: classpath:mcp-server.json
     openai:
       base-url: https://api.deepseek.com
-      api-key: sk-373ae669c88b432ead636ec0e06e9ac1
+      api-key: 
       chat:
         options:
           model: deepseek-chat
